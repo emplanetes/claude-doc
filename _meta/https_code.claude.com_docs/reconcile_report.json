@@ -1,0 +1,16 @@
+{
+  "site": "code.claude.com_docs",
+  "generated_at": "2026-11-18T18:07:25+00:00",
+  "counts": {
+    "llms": 205,
+    "sitemap": 204,
+    "merged": 205,
+    "both": 204,
+    "only_in_llms": 1,
+    "only_in_sitemap": 0
+  },
+  "only_in_llms": [
+    "claude-tag"
+  ],
+  "only_in_sitemap": []
+}
