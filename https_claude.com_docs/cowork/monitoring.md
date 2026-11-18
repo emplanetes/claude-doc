@@ -1,0 +1,293 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://claude.com/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Monitoring
+
+> Track Cowork usage and activity across your organization with OpenTelemetry
+
+Track Cowork usage and activity across your organization by exporting events through [OpenTelemetry](https://opentelemetry.io/) (OTel). Cowork exports events via the OTel logs/events protocol, giving you visibility into user prompts, model responses, API requests, tool usage, and errors.
+
+> [!NOTE]
+>
+> Monitoring is available for Team and Enterprise plans. OTel monitoring requires Claude desktop app version 1.1.4173 or later.
+
+See [Retrieve session transcripts](https://platform.claude.com/docs/en/manage-claude/compliance-sessions) in the Compliance API documentation to retrieve the transcripts of Cowork sessions on request. Requires an Enterprise plan.
+
+## Setup
+
+Configure monitoring from **Organization settings > Data and privacy**:
+
+1. Go to **Organization settings > Data and privacy**
+
+2. Under **Monitoring**, find the **Cowork and Cowork in the cloud** item
+
+3. Configure the following fields:
+
+   | Field | Description | Example |
+   | - | - | - |
+   | **OTLP endpoint** | Your OpenTelemetry collector URL | `http://collector.example.com:4318` |
+   | **OTLP protocol** | Transport protocol | `http/json` or `http/protobuf` |
+   | **OTLP headers** | Authentication headers for your collector | `Authorization=Bearer your-token` |
+   | **Resource attributes** | OTel resource attributes attached to exported events | `deployment.environment=prod,team=platform` |
+
+4. Save your settings
+
+5. Start a new Cowork session. Cowork loads settings when a session starts, so sessions that are already running keep the old configuration.
+
+> [!NOTE]
+>
+> By default, Cowork runs the OTel exporter on the user's device and sends events over that device's network connection. Make sure your collector is reachable from users' devices.
+>
+> You don't need to add your collector to the **Additional allowed domains** field in **Organization settings > Capabilities**. If sessions run in the Cowork VM and your organization restricts network egress, Cowork adds your collector's hostname to the session's allowlist for you.
+
+## Events
+
+Cowork exports the following events to your OTel collector. The collector settings in [Setup](#setup) apply to every Cowork session that runs on a user's computer in Claude Desktop, including Cowork tasks that [Dispatch](https://claude.com/docs/cowork/guide/dispatch.md) starts. They don't apply to Code tab sessions, including Code sessions that Dispatch starts. Whether events include user prompt text, model response text, and tool inputs depends on the [`otlpContentCapture`](https://claude.com/docs/third-party/claude-desktop/configuration#otlpcontentcapture) managed configuration key on each user's device. When the key isn't set, current versions of Claude Desktop send metadata only, and [some older versions](#content-capture) on first-party deployments send content.
+
+### Content capture
+
+Events can carry user prompt text, model response text, and tool inputs in addition to metadata. You set which of these the events carry with the `otlpContentCapture` managed configuration key on each user's device.
+
+To set the key, deploy it with your device management tool to the [managed configuration location for each operating system](https://claude.com/docs/third-party/claude-desktop/configuration-format.md#how-keys-are-read). To export metadata only, set `otlpContentCapture` to an empty list, written as the two characters `[]`. Claude Desktop reads an empty string as if the key weren't set. The key takes effect when Claude Desktop restarts.
+
+The table shows what events carry on current versions of Claude Desktop, for a Cowork session that runs on the user's computer.
+
+| `otlpContentCapture` on the device | Content that events carry |
+| - | - |
+| Not set | No content. Events carry metadata only |
+| Set to a list of [categories](https://claude.com/docs/third-party/claude-desktop/telemetry.md#content-capture) | By default, the content in the listed categories, and model response text when `userPrompts` is listed |
+| Set to an empty list, `[]` | No content. Events carry metadata only |
+
+On first-party deployments, some older versions of Claude Desktop send user prompt text, model response text, and the [`toolDetails` content](#security-and-privacy) when the key isn't set. To make sure a device sends metadata only, set the key to `[]`, which works on every version that supports the key.
+
+Metadata includes `workspace.host_paths` and, on first-party deployments, `user.email`. The key doesn't control either one. See [Security and privacy](#security-and-privacy).
+
+### Event correlation
+
+When a user submits a prompt, Cowork may make multiple API calls and run several tools. The `prompt.id` attribute links all events back to the single prompt that triggered them.
+
+| Attribute | Description |
+| - | - |
+| `prompt.id` | UUID v4 identifier linking all events produced while processing a single user prompt |
+| `event.sequence` | Counter for ordering events that share an `event.timestamp` |
+
+To trace all activity triggered by a single prompt, filter your events by a specific `prompt.id` value.
+
+To order a session's events, sort by `event.timestamp` and use `event.sequence` to order events that share a timestamp. A session can stop running between prompts, for example when a task sits idle or Claude Desktop restarts. When the session resumes, it keeps its [`session.id`](#standard-attributes) and `event.sequence` starts over. A later event in the session can therefore carry a lower value than an earlier one, or repeat one.
+
+On third-party deployments, you can additionally enable OpenTelemetry trace export with the [`otlpTracesEnabled`](https://claude.com/docs/third-party/claude-desktop/telemetry#traces-beta) setting (beta). When it is enabled, events emitted while a prompt is processed also carry `trace_id` and `span_id`, linking them to the session's trace spans for end-to-end correlation in your observability backend.
+
+### Standard attributes
+
+All events include these attributes:
+
+| Attribute | Description |
+| - | - |
+| `session.id` | Unique session identifier |
+| `organization.id` | Organization UUID |
+| `user.account_uuid` | User's account UUID |
+| `user.account_id` | Account ID in tagged format matching Anthropic admin APIs (for example, `user_01BWBeN28...`) |
+| `user.id` | Anonymous device/installation identifier |
+| `user.email` | User email |
+| `workspace.host_paths` | Paths of the folders the user connected to the task (string array) |
+| `terminal.type` | Terminal type (`non-interactive` for Cowork) |
+
+> [!NOTE]
+>
+> The account attributes (`organization.id`, `user.account_uuid`, `user.account_id`, and `user.email`) are populated from the user's Anthropic account, so they appear on first-party deployments only. On [third-party deployments](https://claude.com/docs/third-party/claude-desktop/overview.md) there is no Anthropic account and these attributes are absent; instead, the export carries the signed-in user's identity as the `enduser.id` resource attribute, described under [User attribution](https://claude.com/docs/third-party/claude-desktop/telemetry.md#user-attribution). The `process.owner` resource attribute (the operating-system login name) is standard OpenTelemetry process metadata and is present on all deployments.
+
+### User prompt event
+
+Logged when a user submits a prompt.
+
+**Event name**: `user_prompt`
+
+**Attributes**:
+
+All [standard attributes](#standard-attributes), plus:
+
+| Attribute | Description |
+| - | - |
+| `event.timestamp` | ISO 8601 timestamp |
+| `event.sequence` | Counter for ordering events that share an `event.timestamp`, described under [Event correlation](#event-correlation) |
+| `prompt_length` | Length of the prompt |
+| `prompt` | Prompt content |
+
+### Model response event
+
+Logged when the model completes a response that includes text output. Requires Claude desktop app version 1.17377 or later.
+
+**Event name**: `assistant_response`
+
+**Attributes**:
+
+All [standard attributes](#standard-attributes), plus:
+
+| Attribute | Description |
+| - | - |
+| `event.timestamp` | ISO 8601 timestamp |
+| `event.sequence` | Counter for ordering events that share an `event.timestamp`, described under [Event correlation](#event-correlation) |
+| `model` | Model that produced the response |
+| `request_id` | API request identifier |
+| `response_length` | Length of the response |
+| `response` | Model response text. Includes text output only; thinking content is excluded. Truncated to 60 KB. When model response capture is disabled, the value is the literal string `<REDACTED>`. |
+
+By default, model responses are captured when [`otlpContentCapture`](https://claude.com/docs/third-party/claude-desktop/telemetry#content-capture) includes `assistantResponses`, and also whenever user prompts are captured.
+
+### Tool result event
+
+Logged when a tool completes execution.
+
+**Event name**: `tool_result`
+
+**Attributes**:
+
+All [standard attributes](#standard-attributes), plus:
+
+| Attribute | Description |
+| - | - |
+| `event.timestamp` | ISO 8601 timestamp |
+| `event.sequence` | Counter for ordering events that share an `event.timestamp`, described under [Event correlation](#event-correlation) |
+| `tool_name` | Name of the tool. A tool from an MCP server, such as a connector, is recorded as the literal `mcp_tool`, unless it replaces a built-in tool such as `Bash` and takes that tool's name. |
+| `tool_use_id` | Unique identifier for this tool call. To see how the call was approved, find the [tool decision event](#tool-decision-event) with the same value. |
+| `success` | `"true"` or `"false"` |
+| `duration_ms` | Execution time in milliseconds |
+| `error` | Error message (if failed) |
+| `tool_result_size_bytes` | Size of the tool result in bytes |
+| `mcp_server_scope` | MCP server scope identifier (for MCP tools) |
+| `tool_parameters` | JSON string containing tool-specific parameters, including `mcp_server_name` and `mcp_tool_name` for MCP tools. When [content capture](#content-capture) doesn't include `toolDetails`, this attribute, including those two names, can be absent. |
+| `tool_input` | JSON-serialized tool arguments. Individual strings over 512 characters are truncated; entire string limited to \~4K characters. Applies to all tools including MCP tools. |
+
+### API request event
+
+Logged for each API request to Claude.
+
+**Event name**: `api_request`
+
+**Attributes**:
+
+All [standard attributes](#standard-attributes), plus:
+
+| Attribute | Description |
+| - | - |
+| `event.timestamp` | ISO 8601 timestamp |
+| `event.sequence` | Counter for ordering events that share an `event.timestamp`, described under [Event correlation](#event-correlation) |
+| `model` | Model used (e.g., `claude-sonnet-5`) |
+| `cost_usd` | Estimated cost in USD |
+| `duration_ms` | Request duration in milliseconds |
+| `input_tokens` | Number of input tokens |
+| `output_tokens` | Number of output tokens |
+| `cache_read_tokens` | Number of tokens read from cache |
+| `cache_creation_tokens` | Number of tokens used for cache creation |
+| `cache_creation_5m_tokens` | Portion of `cache_creation_tokens` written with a 5-minute cache lifetime |
+| `cache_creation_1h_tokens` | Portion of `cache_creation_tokens` written with a 1-hour cache lifetime |
+| `speed` | `"fast"` or `"normal"` |
+
+Claude Desktop 3.1623.0 and later send `cache_creation_5m_tokens` and `cache_creation_1h_tokens`. Both are `0` when the API response doesn't report the split, even when `cache_creation_tokens` is above zero. If your deployment uses an [LLM gateway](https://claude.com/docs/third-party/claude-desktop/gateway.md), confirm that the gateway returns the `cache_creation` object in each response's `usage`.
+
+### API error event
+
+Logged when an API request to Claude fails.
+
+**Event name**: `api_error`
+
+**Attributes**:
+
+All [standard attributes](#standard-attributes), plus:
+
+| Attribute | Description |
+| - | - |
+| `event.timestamp` | ISO 8601 timestamp |
+| `event.sequence` | Counter for ordering events that share an `event.timestamp`, described under [Event correlation](#event-correlation) |
+| `model` | Model used |
+| `error` | Error message |
+| `status_code` | HTTP status code as a string, or `"undefined"` for non-HTTP errors |
+| `duration_ms` | Request duration in milliseconds |
+| `attempt` | Attempt number (for retried requests) |
+| `speed` | `"fast"` or `"normal"` |
+
+### Tool decision event
+
+Logged when a tool permission decision is made.
+
+**Event name**: `tool_decision`
+
+**Attributes**:
+
+All [standard attributes](#standard-attributes), plus:
+
+| Attribute | Description |
+| - | - |
+| `event.timestamp` | ISO 8601 timestamp |
+| `event.sequence` | Counter for ordering events that share an `event.timestamp`, described under [Event correlation](#event-correlation) |
+| `tool_name` | Name of the tool. A tool from an MCP server, such as a connector, is recorded as the literal `mcp_tool`, unless it replaces a built-in tool such as `Bash` and takes that tool's name. |
+| `tool_use_id` | Unique identifier for this tool call. A [tool result event](#tool-result-event) for the same call has the same value. |
+| `tool_source` | `"builtin"` for a built-in tool, or `"mcp"` or `"sdk_host_builtin_mcp"` for a tool from an MCP server |
+| `decision` | Either `"accept"` or `"reject"` |
+| `source` | Decision source. One of `"config"`, `"hook"`, `"user_permanent"`, `"user_temporary"`, `"user_abort"`, or `"user_reject"` |
+| `permission_mode` | [Permission mode](https://code.claude.com/docs/en/permission-modes) active when the call's permission check began, such as `"default"` for **Manually approve**, `"auto"` for **Automatically approve**, or `"bypassPermissions"` for **Skip all approvals** |
+| `classifier_verdict` | The [Auto mode](https://code.claude.com/docs/en/permission-modes#eliminate-prompts-with-auto-mode) classifier's verdict on the call, or why Cowork denies the call when the classifier gives no verdict |
+| `classifier_category` | Built-in rule that the classifier names when it blocks the call, such as `"data_exfiltration"`. Sent when [content capture](#content-capture) includes `toolDetails`. |
+| `request_id` | API request identifier of the model response that contained this tool call. Absent when that response has no request ID, or when no model response contained the call. |
+| `tool_parameters` | JSON string containing tool-specific parameters, including `mcp_server_name` and `mcp_tool_name` for MCP tools. When [content capture](#content-capture) doesn't include `toolDetails`, this attribute, including those two names, can be absent. |
+
+Cowork shows Auto mode as **Automatically approve**. An event has `classifier_verdict` when the Auto mode classifier decides the call, or when Cowork denies the call because the classifier gives no verdict. An event with `classifier_verdict` reports `source` as `"config"`. The attribute takes one of these values:
+
+* `"allow"`: the classifier approves the call
+* `"block"`: the classifier blocks the call. A check that fails partway through can also end as `"block"`.
+* `"no_verdict"`: the classifier's check runs but gives no usable verdict, so Cowork denies the call
+* `"unavailable"`: the check can't run or can't finish, for example because the request to the classifier fails, so Cowork denies the call
+
+For what each `source` and `classifier_verdict` value covers, and for the Auto mode calls that have no `classifier_verdict`, see [Tool decision event](https://code.claude.com/docs/en/monitoring-usage#tool-decision-event) in the Claude Code documentation. Cowork tasks follow what that section says for Agent SDK sessions.
+
+Claude Desktop 3.1623.0 and later send `permission_mode`, `classifier_verdict`, and `classifier_category`. Claude Desktop 4.16336.0 and later send `request_id`.
+
+## Event analysis
+
+The exported events support a range of analyses:
+
+**Tool usage patterns**: Analyze tool result events to identify most frequently used tools, success rates, average execution times, and error patterns.
+
+**Cost monitoring**: Track `cost_usd` from API request events to understand usage trends across users and teams. Group by `user.account_uuid` or `organization.id` for per-user or per-team breakdowns.
+
+**Performance monitoring**: Track API request durations and tool execution times to identify performance bottlenecks.
+
+> [!NOTE]
+>
+> Cost values from events are approximations. For official billing data, refer to your billing dashboard.
+
+## Backend considerations
+
+Your choice of logs backend determines the types of analyses you can perform:
+
+* **Log aggregation systems** (e.g., Elasticsearch, Loki): Full-text search and log analysis
+* **Columnar stores** (e.g., ClickHouse): Structured event analysis and complex queries
+* **Observability platforms** (e.g., Honeycomb, Datadog): Advanced querying, visualization, and alerting
+
+## Service information
+
+All events are exported with the following resource attributes:
+
+| Attribute | Description |
+| - | - |
+| `service.name` | `cowork` |
+| `service.version` | Claude app version |
+| `host.arch` | Host architecture (e.g., `arm64`) |
+| `os.type` | Operating system type (e.g., `darwin`) |
+| `os.version` | Operating system version string |
+| `enduser.id` | The signed-in user's identity, on third-party deployments only. Controlled by the [`endUserAttribution`](https://claude.com/docs/third-party/claude-desktop/configuration#enduserattribution) setting; see [User attribution](https://claude.com/docs/third-party/claude-desktop/telemetry.md#user-attribution). |
+| `process.owner` | Operating-system login name |
+
+## Security and privacy
+
+* Events are only exported when an admin configures the OTLP endpoint
+* The [`otlpContentCapture`](#content-capture) key on each device sets which content events carry. Each category you list in the key adds its content. The [full category list](https://claude.com/docs/third-party/claude-desktop/telemetry.md#content-capture) has two more than these three:
+  * `userPrompts`: user prompt text
+  * `assistantResponses`: model response text
+  * `toolDetails`: the arguments a tool was called with, in `tool_input` and `tool_parameters`, such as shell commands, file paths, URLs, and search patterns. It also covers the text of a failed tool's error message, in `error` on the [tool result event](#tool-result-event), and the classifier's rule name in `classifier_category` on the [tool decision event](#tool-decision-event)
+* On Claude Desktop version 1.17377 or later, events that carry user prompt text also carry model response text by default, even when the key doesn't list `assistantResponses`
+* When `otlpContentCapture` isn't set, current versions of Claude Desktop send metadata only. To make sure a device sends metadata only, set the key to `[]`
+* Metadata includes `workspace.host_paths`, the paths of the folders a user connects to a task. `otlpContentCapture` doesn't control this attribute, so events carry the paths even when the key is `[]`. If folder names can be sensitive, configure your telemetry backend to filter or redact it
+* On first-party deployments, `user.email` is always included in event attributes, so configure your telemetry backend to filter or redact it if this is a concern
+* On third-party deployments, `user.email` is absent; the export identifies users with the `enduser.id` resource attribute, controlled by the [`endUserAttribution`](https://claude.com/docs/third-party/claude-desktop/configuration#enduserattribution) setting

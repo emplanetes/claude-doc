@@ -1,0 +1,322 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://claude.com/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Claude for Government changelog
+
+> Release notes for Claude for Government
+
+For changes to the apps themselves, see the [Claude Desktop changelog](https://claude.com/docs/cowork/changelog.md), its [configuration changelog](https://claude.com/docs/third-party/claude-desktop/configuration-changelog.md), and the [Claude Code changelog](https://code.claude.com/docs/en/changelog).
+
+**2026.11.17.1**
+
+* (breaking) Changed the Code tab in Claude Desktop to need [version 3.1623.4](https://claude.com/docs/cowork/changelog.md#v3-1623-4) or later: on an older version, members see **This version of Claude Desktop is too old for the Code tab** until they update the app. Chat and Cowork aren't affected.
+* Changed the longest **Session idle timeout** that a tenant administrator can set from 96 hours to 28 days (40,320 minutes): a value above 96 hours that is already saved now takes effect, up to 28 days.
+* Changed the tenant portal's **Seats** page and an organization's **Billing** page to show the most seats the organization can have on each seat tier.
+* Changed the **Billing** page of an organization that uses another organization's billing account: only tenant administrators now see which organization owns the account.
+* Added [**Export and import between computers**](https://claude.com/docs/government/config/settings.md#export-and-import-between-computers), a Config page setting that is off by default: it lets members [move their Claude Desktop data to another computer](https://claude.com/docs/government/desktop/import.md#move-your-data-to-another-computer) in a zip file, on [Claude Desktop 6.6395.0](https://claude.com/docs/cowork/changelog.md#v6-6395-0) or later.
+* Added a confirmation after you save, create, or delete a seat tier.
+* Improved the error shown when an action needs an Owner of the organization: it now says so and suggests asking an Owner for help.
+* Fixed the **Config** page silently dropping a list entry that was typed but not added, or a connector header line not written as `Name: Value`; it now stops and says what to correct.
+* Fixed a held Backspace removing several entries from a list on the **Config** page.
+
+**2026.11.13.1**
+
+* Added a way for a Primary Owner or tenant administrator to make a member an Owner when group mappings make them a User. The Compliance API's `user.role_changed` activity then carries `owner_pinned: true`.
+* Changed the **Users** page: Owners can't choose **Owner** where group mappings would undo it, and other role and seat tier choices that mappings may undo are marked.
+* Changed Claude Desktop 4.16336.0 through 5.1231.2 to hide its notices about deprecated settings, including device profile settings, until the last day each setting works.
+* Added a **Deactivated** badge on the tenant portal's **Admins** page for administrators whose accounts are deactivated.
+* Added a confirmation before you withdraw a domain claim.
+* Fixed members staying locked out after their organization was deactivated: if a provisioning rule places them in another organization, directory sync now moves them there and reactivates them.
+* Fixed the spend caps and seats forms undoing another administrator's newer change when saved from a page opened earlier: the save now stops and asks you to reload.
+* Fixed the import from Claude for Government Web failing on a very large project document: on Claude Desktop 4.29.0 or later, a document too large to import is left out, a "Not imported:" chat tells the member, and the Compliance API's `user.web_data_export_completed` activity counts it in `left_out_docs_too_large`.
+* Fixed raw JSON showing when an app's sign-in link was opened again after sign-in: a page now says the link was already used.
+* Fixed organization and member pickers showing only the last search's results when reopened, and **Verify now** showing an error for a domain that was already verified.
+* Fixed an error when saving a seat tier whose name is only a number, such as 2026.
+
+**2026.11.12.1**
+
+* (breaking) Changed the directory sync (SCIM) `/Users` and `/Groups` lists to return at most 1,000 records per request, even when no `count` is sent.
+* (breaking) Changed the minimum version of the Claude Code command-line tool that the gateway accepts to 2.1.308: members on an older version can't send messages until they update, except in sessions signed in through Claude Desktop.
+* Changed who can create an [Admin API key](https://claude.com/docs/government/org-admin/admin-api-keys.md) that reads **Usage and cost reports**: any Owner or Primary Owner of the organization can, and so can a tenant administrator acting as an Owner there.
+* Changed **Add organization** in the tenant portal: **Primary Owner email** is now optional, and tenant administrators who leave it blank manage the new organization themselves.
+* Changed low-credit emails: for an organization with no Owner or Primary Owner, they now go to the tenant's administrators, and the Compliance API's `spend_alert.delivered` activity carries `recipient_scope: tenant_admins`.
+* Added the ability for tenant administrators to change a Primary Owner's seat tier, unless the organization manages its own billing account. The Compliance API's `user.seat_tier_changed` activity carries `by_tenant_admin: true` when a tenant administrator who isn't one of the organization's Primary Owners makes the change.
+* Added an email to tenant administrators when Anthropic staff add a tenant administrator, add a Primary Owner, or reactivate an organization.
+* Changed the Compliance API and the Analytics API to answer a call to an address that doesn't exist with a `404` that names the right addresses.
+* Improved the Analytics API's error message when `starting_at` or `ending_at` is a date without a time.
+* Changed directory sync (SCIM) `/Users` responses to leave out `groups`; group membership and group mappings are unaffected.
+
+**2026.11.10.2**
+
+* Fixed the **Role** and **Seat tier** pickers on the Users page saving a new choice when you typed a character while the list was closed.
+* Changed the organization admin portal's **Compliance API** page to [**Admin API keys**](https://claude.com/docs/government/org-admin/admin-api-keys.md): existing keys keep working, and keys created there now start with a different prefix.
+* Updated single sign-on in the tenant portal: the confirmation before you change a connection now warns of more ways members can lose access, and the SAML form keeps the metadata and attribute names you entered when a save is refused.
+* Improved the accessibility of the Admin Console for keyboard and screen reader users, and made chart legends on the Analytics page easier to read.
+* Added fields to Compliance API activities: `scopes` on `api_key.created` says what the key can read, and `api_key_id`, `name`, and `partial_key_hint` on `api_key.revoked` say which key it was; when Anthropic revokes a key, `reason` is `anthropic_revoke` and `detail` says why.
+* Added the [Analytics API](https://claude.com/docs/government/org-admin/analytics-api.md), in beta, which returns an organization's usage and estimated cost down to each member, with names and email addresses. It is off until an owner or tenant administrator turns on **Analytics API** under Config > Admin Console.
+
+**2026.11.10.1**
+
+* (breaking) Changed **Bypass-permissions mode** (Config > Integrations) to apply to Claude Desktop 1.46388.1 or later in every organization, not only those whose Config page has a **Claude Code** section. It is **Blocked** by default, so members it newly covers are asked to restart and can't use the mode until an admin sets it to **Allowed**.
+* (breaking) Changed the Admin Console to accept only plain numbers (`1000`, not `1e3`) in settings, seats, and seat tiers, and to show an error under a number that is out of range, even one saved earlier. An error on a saved number changes nothing for members.
+* (breaking) Removed the `/gateway-api/bootstrap` address: a device whose `bootstrapUrl` ends in it now gets no settings, so use the [documented address](https://claude.com/docs/government/deploy-desktop/configure.md#the-bootstrap-address), which ends in `/gateway-api/user/bootstrap`.
+* Changed the import from Claude for Government Web on Claude Desktop 4.29.0 or later: a chat or project too large to import is left out instead of failing the whole import, and a "Not imported:" chat tells the member to contact their administrator. The Compliance API's `user.web_data_export_completed` activity counts these in `left_out_conversations_and_projects_too_large`.
+* Improved the reliability of the import from Claude for Government Web for members with many files or pasted texts; a member whose import stopped can run it again.
+* Changed spend alerts (banner and email) to say how much credit is left instead of how much was used.
+* Added a note beside the credit balance on the organization's **Billing** and **Analytics** pages that says, from 30 days before credit expires, how much expires and when.
+* Fixed credit that expired unused showing as used on the **Billing** and **Analytics** pages and being counted as spend in spend alerts.
+* Changed the **By product** table on the Analytics page and the Organization Analytics connector to count Claude Desktop's automatic chat titles and similar background requests under Claude Desktop, not Claude Code; earlier usage keeps its original product.
+* Changed the Admin Console to tell screen readers which setup steps and Readiness items are complete or waiting.
+* Changed the name Claude Desktop shows for its connection from "Gateway" to "Claude for Government", on Claude Desktop 2.2553.0 or later.
+
+**2026.11.06.1**
+
+* (breaking) Changed the gateway to answer chat and token-count requests with `429` and `Retry-After` when too many very large requests are in progress. Claude Code retries on its own.
+* (breaking) Changed Admin Console requests other than plugin uploads to be limited to 1 MiB.
+* (breaking) Changed the gateway API to answer `414` to a request whose URL is over 8 KiB or whose query string has more than 256 parameters: a longer `actor_ids[]` list on the Compliance API has to be split across requests.
+* Changed the Admin Console to accept capital letters in connector names: changing only a connector's capitals can reset members' tool choices for it and ask them to connect again, and Compliance API connector events include a `display_name` field with the typed name when it has capitals.
+
+**2026.11.05.1**
+
+* (breaking) Changed what Claude Desktop opens for members who have **Chat in Claude Desktop**, **Cowork in Claude Desktop**, and **Code in Claude Desktop** all off and no **Claude Desktop home** chosen (**Separate settings** counts as none): Claude Desktop 1.52386.0 or later keeps Cowork on for them until November 9, 2026, 00:00 UTC (November 8 in US time zones, 7 PM Eastern); from then they may be asked to restart, after which it has nothing to open for them, and earlier versions keep Cowork on.
+* Changed seating for new members: group mappings now apply at first sign-in for members your directory has already synced with that email, and if the mapped or **New members start here** seat tier is full, a member who signs in gets no seat and directory sync (SCIM) doesn't add or re-enable the member.
+* Changed imports from Claude for Government Web into Claude Desktop to leave out uploaded files whose names end in `.wfm`, which a network filter may block: the chats and projects that held them still import, without those files.
+* Added a notice to **Claude Desktop home** in the Admin Console: from November 10, 2026, on Claude Desktop 4.29.0 or later, turning off **Chat in Claude Desktop** or **Advanced file analysis in Chat** has no effect for members who have Cowork.
+* Added **New members start here** to Anthropic-managed seat tiers: while it is on, new members in no mapped group start on that tier or get no seat.
+
+**2026.11.04.1**
+
+* Changed the pages after the U.S. Government notice: a second click by a member already signed in, and a sign-in with no page to return to, now open the member's start page in the Admin Console.
+* Changed the Admin Console's confirmation for adding a group mapping to warn that members already on an Anthropic-managed seat tier who are not in a mapped group may be moved to a different seat tier when a group is first mapped to it, and to give the group's size as "this group has N members".
+* Changed the API to end a long response when the client stops reading it for 30 seconds.
+
+**2026.11.03.1**
+
+* Fixed the most-used links to Claude for Government Web pages, such as saved chats, showing "Page not found" in the Admin Console: they now lead to the Admin Console's start page.
+* Fixed the setup wizards' Seat tiers step telling a tenant admin who belongs to no organization that Anthropic manages the organization's seat tiers when the organization can edit them.
+* (breaking) Changed the Admin Console's Group mappings page to refuse a seat tier that allows no models or has a \$0 spend limit, because the group's members could not have used Claude for Government; a mapping that already points at such a seat tier stays.
+* Changed the minimum version of the Claude Code command-line tool that the gateway accepts to 2.1.274: members on an older version are asked to update before they can send messages.
+* Changed how Claude Desktop and Claude Code connect to web search: Claude Desktop asks members with web search on to relaunch once after this release, and after **Sign out everywhere** a relaunch brings web search back; if a firewall or secure web gateway rule allows web search by URL path, add your Claude for Government address followed by `/gateway-api/mcp/web-search` to that rule.
+* Changed active user counts on the Analytics page and in the Organization Analytics connector to count a member only when Claude answered at least one of their requests in the period: opening Claude Desktop without sending a message no longer counts, and past periods are counted the same way.
+* Improved how quickly directory sync (SCIM) creates accounts for new members and restores members who return, in tenants with a large directory.
+* Added a confirmation on the Config pages before a save turns off Chat, Advanced file analysis, or Cowork in Claude Desktop for members who have them.
+* Added a confirmation before a save changes or replaces a connected identity provider on the tenant portal's Identity and access page and in the setup wizard.
+
+**2026.11.02.3**
+
+* Fixed **Reset usage limits** being refused for seven days after a member moved off an Anthropic-managed seat tier.
+* Fixed the seat tier delete dialog refusing a name with a doubled space when typed as shown, and closing on Escape or a click outside while the deletion was still running.
+* Added confirmations in the Admin Console before saves that can change members' access or seat tiers: turning a product off, setting a \$0 spend cap, some seat tier changes, adding a group-to-seat-tier mapping or a provisioning rule for a directory group, and changing a directory group's priority.
+
+**2026.11.02.2**
+
+* Improved sign-in speed for existing members while a directory sync restores a deactivated member.
+
+**2026.11.02.1**
+
+* Removed browser access to Claude for Government Web, including its sign-in page and saved links to chats: your agency's Claude for Government address now opens the web portal.
+* Updated directory sync: a seat tier or role set by an admin against a group mapping usually returns to the mapped value sooner, except a primary owner role; if the mapped seat tier has no free seat, the member stays on the tier an admin set, and a member waiting for a seat can take the seat they left.
+* Improved how quickly changes to routing rules and group mappings take effect for members in tenants that sync a large directory with SCIM.
+
+**2026.10.30.1**
+
+* Changed **Claude Desktop home** under Config to ask in more cases before a save or a reset turns on Chat, Advanced file analysis, or Cowork.
+
+**2026.10.28.1**
+
+* Fixed directory sync not moving a member to another organization when one of their groups is mapped there to a self-managed seat tier with no seat limit; members it left behind move at the next directory sync that includes them.
+
+**2026.10.23.2**
+
+* Changed directory sync (SCIM) to use your directory group order when choosing a seat tier: a member in several mapped groups gets the tier of the highest group, so some members may change seat tier.
+* Fixed new directory groups sometimes taking priority over existing ones: new groups now go to the bottom of the list.
+
+**2026.10.23.1**
+
+* Improved links and search on the Config page: the setting you open is outlined, and a link moves keyboard focus to it.
+
+**2026.10.22.1**
+
+* Added the **Check for updates on releases.claude.com** setting under Config > Compliance and telemetry for networks that block `api.anthropic.com`; it is off by default and needs Claude Desktop 1.26832.0 or later.
+
+**2026.10.21.2**
+
+* Changed directory sync (SCIM) so existing members can move to their provisioning rule's organization without signing in first; the move signs them out and resets their role and seat tier.
+
+**2026.10.21.1**
+
+* Fixed the tenant portal's Identity and access page so that it says its SCIM details couldn't load instead of looking as if SCIM had never been set up.
+* (breaking) Changed **Claude Desktop home** where a setting enforced at a higher level conflicts with the choice: members on Claude Desktop 1.52386.0 or later may lose Chat, Advanced file analysis or Cowork after a required relaunch.
+* Changed Claude Desktop for members who have **Chat in Claude Desktop** on, **Cowork in Claude Desktop** off, and no **Claude Desktop home** chosen: from November 9, 2026 (UTC), they may be asked to relaunch and then see the new home screen, still without Cowork.
+* Changed the Code tab in Claude Desktop to ask the member before each command Claude runs in its Terminal panel, even in bypass-permissions or Auto mode, while **Blocked shell commands** lists any command.
+* Improved directory sync (SCIM) so that one tenant's very large sync no longer holds up directory changes in other tenants.
+* Added a **Chat only** choice to the **Claude Desktop home** setting on the Config pages, which gives members Chat without Advanced file analysis or Cowork; with this choice the new home screen shows on Claude Desktop 2.2553.0 or later.
+
+**2026.10.18.1**
+
+* Changed the scope bar dropdown on the Config pages to list **A directory group** before any group has synced.
+* Changed the browser page at the end of app sign-in to tell a member with no seat that an administrator has to assign one.
+
+**2026.10.14.2**
+
+* Added **Callback port** and **Callback host** to the **OAuth (pre-registered app)** option for connectors under Config > Integrations, for sign-in providers that accept the redirect only on a registered port or host; the Compliance API records both.
+
+**2026.10.14.1**
+
+* Fixed sign-in sending some tenants' members to a page that does not exist when single sign-on had never been connected: sign-in now shows a message instead, and the tenant portal's Identity and access page shows single sign-on as Not configured.
+* Fixed the seat tier form losing what was typed in Name and Sort order when a save was refused.
+* Changed the Compliance API to return only the most recent 30 days of activity; requests reaching further back succeed and return only events from the last 30 days.
+* Changed the error for a chat or token-count request that is over the size limit for a single request: it is now a 413 `request_too_large` error whose "Request too large" message says to start a new conversation or send fewer or smaller attachments.
+* Changed the tenant Config page to make a tenant admin choose whether organizations may set their own value the first time they set **Telemetry endpoint**, **Telemetry headers**, or **Connectors**; **Connectors** didn't offer this choice before.
+* Added a **Default model** setting to seat tiers, with an **Always start with the default model** option that needs Claude Desktop 2.110.0 or later; seat tier create and update activities from the Compliance API include both settings.
+* Added the **Scheduled tasks** setting under Config > Product availability, on by default; turning it off stops scheduled tasks in Cowork and Code on Claude Desktop 2.110.0 or later.
+
+**2026.10.07.1**
+
+* Improved screen reader support for the seat tier picker on the Admin Console's Users page.
+* Changed usage limits, spend caps and usage pages to count requests with long prompts at a model's higher price for them, where a model has one.
+* Added the **Terminal panel tools** setting under Integrations, which lets Claude run commands in the Code tab's Terminal panel and open, list or stop its tabs; it is on by default and off while Shell commands is off.
+
+**2026.10.02.1**
+
+* Changed the tenant portal's Seats and Billing pages and its billing-account picker to list billing accounts A to Z by name.
+* Added an **Open Claude Desktop** button to the Account tab of the web portal: it opens Claude Desktop on the member's computer, and shows for members who have a seat tier and have Claude Desktop turned on.
+
+**2026.10.01.1**
+
+* Added a **New members start here** option to self-managed seat tiers, so you can pick the tier new members start on.
+
+**2026.09.30.1**
+
+* Fixed the Config page describing an empty **Restart deadline for configuration changes** as 1 hour; an empty field uses Claude Desktop's default, which is 24 hours on up-to-date versions.
+* Changed the Config page's Product availability rows to read "Coming soon" for a product Anthropic has not yet made available to your tenant, instead of showing a switch that could be turned on without effect.
+* Changed Claude Desktop's Claude for Government Web import banner so that it can come back a few days after a member skips it, until they run the import or have skipped it a few times; this needs Claude Desktop 2.16120.0 or later.
+* Improved the User email addresses pages in the organization portal and the tenant portal: a list of more than 450 addresses is shown in parts of up to 450, each with its own Copy button.
+* Added the `People.Read`, `Team.ReadBasic.All` and `Channel.ReadBasic.All` permissions to the Microsoft 365 connector's **Read access** list under Config > Integrations, which let Claude search for people and list a member's teams and channels; they require Claude Desktop 1.32885.1 or later.
+
+**2026.09.29.1**
+
+* Changed directory sync so that a member who leaves a group mapped to a self-managed seat tier with no seat limit keeps that seat tier until another group's mapping or an admin moves them.
+* Added the ability for tenant administrators to grant and remove the Primary Owner role in an organization that doesn't manage its own billing account.
+* Added a **Copy user email addresses** button to the tenant portal's Organizations page: it opens a page where tenant admins can copy the email addresses of everyone in the tenant who has not been deactivated, all together or one organization at a time.
+* Added **Move up**, **Move down**, **Move to top**, and **Move to bottom** to each sign-in rule, provisioning rule, and directory group row in the tenant portal, so they can be reordered without dragging.
+
+**2026.09.25.1**
+
+* Added the **Block reads outside workspace folders** setting under Sessions and access, which stops Claude's file tools in a Claude Desktop Code session from reading outside its project folder and the Allowed workspace folders.
+
+**2026.09.24.2**
+
+* Fixed the keyboard focus outline on scrollable tables in the Admin Console being hard to see.
+* Improved Plugins, Connectors, and Analytics in the Admin Console so that a failed load shows one consistent notice with a Try again button.
+* Added the **Show the Claude for Government Web import banner** setting under Config > Appearance: for organizations linked to Claude for Government Web, Claude Desktop 2.9939.2 or later shows members a banner inviting them to bring over their chats and projects.
+
+**2026.09.24.1**
+
+* Fixed the person search on the Compare config page so you can change or clear the person after picking one.
+* Added **Role** and **Seat tier** filters to the Users page, so you can find an organization's Owners without paging through everyone.
+* Added an email to a tenant's admins when Anthropic staff change the tenant's registered domains, listing the domains before and after the change.
+
+**2026.09.22.1**
+
+* Fixed members whose browser sign-in is refused, for example because their account was deactivated, seeing an "Invalid redirect uri" error instead of the page that explains why they can't sign in.
+* Changed web sign-in for tenant administrators and Primary Owners: the **Choose sign-in** page is gone, **Email me a sign-in link** is now under the form where you enter your work email, and **Continue** takes you straight to single sign-on when your tenant has it set up.
+* Changed sign-in for Claude Desktop: signing in right after another app sign-in in the same browser now goes through your identity provider, and you may be asked which account to use.
+* Changed the model picker in Claude Desktop: a model that needs a newer version of the app no longer appears until the app is updated.
+* Updated the device sign-in approval page to name the application that asked to sign in and to warn when the request came from a different network address than your browser.
+* Updated the **Require approval for each command** and **Require approval for each fetch** help text on the Config page: with these settings off, Chat and Cowork fetch pages and run shell commands without asking, which for Chat's shell commands is new since Claude Desktop 2.110.0.
+* Improved what a browser sign-in shows when it expires or is not completed: a page that says what happened and where to sign in again, instead of a line of error text.
+* Improved how the Admin Console handles brief faults: a page, or part of one, that can't load now says so and offers a way to try again.
+* Added a confirmation step before revoking a SCIM token, deleting a connector or removing a group mapping in the Admin Console.
+* Added the **Let members add their own connectors** setting under Config > Integrations at the tenant, organization, and group levels, off by default; turning it on lets members add connectors of their own in Claude Desktop.
+* Added a **Copy user email addresses** button to the Users page: it opens a page where organization owners and tenant admins can copy the email addresses of everyone in an organization who has not been deactivated, separated by commas or, for Outlook, by semicolons.
+
+**2026.09.16.1**
+
+* Fixed members not being reactivated after they are re-enabled in your identity provider.
+* Changed SCIM provisioning to reject requests to deactivate an organization's primary owner or a tenant's last admin until ownership is transferred or another admin is added.
+* Changed SCIM provisioning to return an error that says what to do first when an identity provider deactivates or changes the email address of a member who is not yet linked to their directory entry.
+* Changed sign-in for accounts outside any organization that still held a Primary Owner role without being a tenant admin: they now sign in like any other member.
+* Changed sign-in: a network that starts sign-ins unusually fast is briefly told to try again.
+* Added a check of the Issuer against what your identity provider publishes when you save OIDC single sign-on.
+* Added a Test sign-in button to the Single sign-on settings on the tenant portal's Identity and access page, so a tenant admin can check their own sign-in through their identity provider.
+* Added **Sign out everywhere** to each member's row menu on the Users page, which ends all of that member's sessions; the Compliance API records it as `user.sessions_revoked`.
+* Added the option to enforce settings whose values are hidden after saving, such as Telemetry headers, from the Admin Console.
+* Added the **Claude Desktop home** setting on the Config page, which sets Chat, Advanced file analysis, and Cowork in Claude Desktop together. It needs Claude Desktop 1.52386.0 or later.
+
+**2026.09.15.1**
+
+* Fixed directory provisioning (SCIM) rejecting some of the user updates that Microsoft Entra ID sends by default.
+* Changed what removing a tenant admin does for someone who is not yet in an organization: they can no longer request an emailed sign-in link and are placed by the sign-in routing rules at their next single sign-on, like any other member.
+* Changed where Claude Desktop looks for Anthropic's published model catalog (model names, descriptions and effort options): starting with the first Claude Desktop release that supports the setting, the app asks your Claude for Government host for it instead of `downloads.claude.ai`, and keeps using the catalog it already has when the host has no copy.
+* Improved how service updates are applied so that answers still being generated when an update begins have longer to finish.
+* Added more checks of your identity provider's signing certificate when you save SAML single sign-on.
+* Added the "Let members create skills" setting under Config > Integrations, on by default: turning it off stops members from creating or uploading skills of their own in Claude Desktop.
+
+**2026.09.11.1**
+
+* (breaking) Changed the **Telemetry endpoint** setting on the Config page to check its host name more strictly when you save; an address that is already saved stays until the setting is next changed.
+* Changed plugin uploads to ask for the Runs code confirmation when a plugin's `settings.json` sets anything other than its default agent or a `$schema` reference, such as a status line.
+* Added tenant-level Compliance API keys: tenant administrators can create, list, and revoke them on the tenant portal's **Compliance API keys** page under Settings, and a tenant-level key returns the events of every organization in the tenant together with tenant-level activity.
+* Improved accessibility in the Admin Console for people who use the operating system's reduce motion setting or a screen reader.
+
+**2026.09.10.1**
+
+* Fixed importing Claude for Government Web chats into Claude Desktop failing with "This account doesn't match your organization" for members of tenants that use directory provisioning (SCIM) now but did not on Claude for Government Web.
+* Added the "Let members add plugin marketplaces" and "Let members add their own plugins" settings under Config > Integrations at the tenant, organization, and group levels, both off by default: members on Claude Desktop 1.37937.0 or later can no longer add plugin marketplaces or their own plugins unless an admin turns these on, while marketplaces and plugins they already added keep working.
+* Changed the "Claude Code" and "Claude for Microsoft 365" switches under Config > Product availability so that turning a product off takes effect at once for members already signed in to it, instead of waiting for the product to re-read its settings; a member who signs in to Claude for Microsoft 365 while it is off is now told so on the sign-in page.
+* Added the "IPv6 in the sandbox" setting under Config > Access and models at the tenant, organization, and group levels, off by default: when it is on, Claude Desktop on macOS and Windows lets tools in its sandbox reach IPv6-only hosts during Cowork tasks, which takes effect once a Claude Desktop release that supports the setting is available.
+
+**2026.09.09.1**
+
+* Changed how the "Telemetry headers" setting and your connectors are delivered to Claude Desktop, ahead of Claude Desktop retiring the older formats: nothing changes in your settings or for members, and the notice about deprecated configuration fields that Claude Desktop 1.40609.0 or later can show no longer lists them.
+
+**2026.09.08.1**
+
+* Fixed web fetch failing in Claude Desktop's Code sessions on networks that block `api.anthropic.com`: sessions no longer contact that host before fetching a page, which takes effect on Claude Desktop 1.37937.0 or later after a restart.
+* Fixed the sign-in page Claude Desktop opens in the browser showing an error instead of a field to enter the code when it is opened without a code or with an expired one.
+
+**2026.09.04.1**
+
+* Changed the limit on a member's active app sign-ins from 3 shared across the Claude apps to 6 in each app: a new sign-in over the limit now signs out the one closest to expiring instead of the oldest.
+
+**2026.09.03.1**
+
+* Fixed Admin Console pages sometimes loading part light and part dark when your computer is set to dark mode, which made some text hard to read.
+* Improved the Admin Console for tenant admins who manage several organizations: every page shows which organization or tenant your changes apply to.
+
+**2026.09.02.1**
+
+* Fixed the Sessions page under Account showing every app sign-in as "Desktop app": each sign-in now names its app, or reads "Claude app" when the app is not known.
+* (breaking) Changed the "Telemetry endpoint" setting under Config > Compliance and telemetry to refuse an address products can't use, such as one with a password or a `?` query; an address you already saved is checked only when you next change the setting.
+* (breaking) Changed the "Telemetry resource attributes" setting under Config > Compliance and telemetry to refuse a value longer than 255 bytes, where a space or an accented letter counts as three or more bytes; values you already saved are checked only when you next change the setting.
+* (breaking) Changed the "Advanced file analysis in Chat" setting under Config > Product availability to apply only on Claude Desktop 1.14271.0 or later; on 1.13576.0, the only earlier version with this feature, it is off until the app is updated.
+
+**2026.08.28.1**
+
+* Improved screen reader and keyboard support in the Admin Console: actions such as revoking a key or saving seats now announce their result, and keyboard focus returns to the control you used instead of being lost.
+* Changed the main button on the sign-in pages to a dark button with a white label so it is easier to read; the page an emailed sign-in link opens now announces its result to screen readers.
+* Added the "Restart deadline for configuration changes" setting under Config > Compliance and telemetry: it sets how long members can keep working after a settings change before Claude Desktop requires the restart that applies it, and takes effect on Claude Desktop 1.40609.0 or later.
+* Added a search box to the Config page that finds a setting by its name or description and takes you to it.
+
+**2026.08.26.1**
+
+* Fixed members on the default 24-hour "Session idle timeout" being signed out a day after signing in even when they had kept using Claude; the timeout now counts from a member's last activity.
+* Improved screen reader support in the Admin Console: dialog options, repeated buttons, and usage meters are announced with distinct names, every page has its own browser title, and the setup wizards move keyboard focus to the new step's heading when you change steps.
+* Changed the "Session idle timeout" setting so a tenant admin can set it as high as 96 hours (5,760 minutes); the default is still 24 hours. A tenant value above 24 hours saved earlier, which was ignored until this release, now applies, up to 96 hours.
+* Added connector management to the Group configuration pages: tenant admins and organization owners can add connectors for one directory group or override inherited ones, and these changes appear as new activity types in the Compliance API feed.
+
+**2026.08.25.2**
+
+* Fixed adding a plugin or marketplace under Config > Integrations > Plugins failing with "Something went wrong" for all but the smallest zip files.
+* Added text alternatives to the charts on the Admin Console's Analytics page: screen readers announce each chart by name and can read its plotted values as a table.
+
+**2026.08.25.1**
+
+* Fixed the "By product" table on the Analytics page counting Claude for Microsoft 365 activity as "Unknown".
+
+**2026.08.24.1**
+
+* Fixed Admin Console pages cutting off setting names, values, and buttons at high browser zoom or in narrow windows; content now wraps instead of scrolling sideways.
+* Added two settings under Config > Compliance and telemetry: "Application event level (Claude Desktop)" chooses how much of Claude Desktop's application event log goes to your telemetry collector, and "Telemetry resource attributes (Claude Desktop)" adds your own labels to every record.
