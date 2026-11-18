@@ -74,6 +74,7 @@ jobs:
 
       - name: Commit and push changes
         env:
+          EVENT_NAME: ${{ github.event_name }}
           METRICS_FILE: ${{ runner.temp }}/sync_metrics.json
         run: |
           shopt -s nullglob
@@ -87,6 +88,16 @@ jobs:
             python3 -c 'import json, os; d = json.load(open(os.environ["METRICS_FILE"], encoding="utf-8")); print(d["added"], d["updated"], d["deleted"], d["unchanged"])'
           )
 
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            DOC_PREFIX="文档手动更新"
+            META_CHANGED_MSG="元数据手动更新（文档有变化）"
+            META_UNCHANGED_MSG="元数据手动更新（无文档变更）"
+          else
+            DOC_PREFIX="文档常规更新"
+            META_CHANGED_MSG="元数据常规检查（文档有变化）"
+            META_UNCHANGED_MSG="元数据常规检查（无文档变更）"
+          fi
+
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
 
@@ -99,7 +110,7 @@ jobs:
             git add -A -- "${DOC_PATHS[@]}"
             if ! git diff --cached --quiet; then
               DOCS_CHANGED=true
-              git commit -m "本次文档更新 新增${ADDED} 修改${UPDATED} 删除${DELETED} 不变${UNCHANGED}"
+              git commit -m "${DOC_PREFIX}：新增${ADDED} 修改${UPDATED} 删除${DELETED} 不变${UNCHANGED}"
             fi
           fi
 
@@ -109,9 +120,9 @@ jobs:
             if ! git diff --cached --quiet; then
               META_CHANGED=true
               if [ "$DOCS_CHANGED" = "true" ]; then
-                git commit -m "元数据常规检查（文档有变化）"
+                git commit -m "$META_CHANGED_MSG"
               else
-                git commit -m "元数据常规检查（无文档变更）"
+                git commit -m "$META_UNCHANGED_MSG"
               fi
             fi
           fi
