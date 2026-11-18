@@ -1,0 +1,123 @@
+name: Sync Claude Documentation
+
+on:
+  schedule:
+    # Monthly on the 15th at 00:00 UTC (08:00 Beijing Time)
+    - cron: '0 0 15 * *'
+  workflow_dispatch:
+    inputs:
+      full_sync:
+        description: 'Force full SHA-256 verification (ignore lastmod cache)'
+        type: boolean
+        required: false
+        default: true
+      site:
+        description: 'Target site to sync'
+        type: choice
+        required: false
+        default: 'all'
+        options:
+          - all
+          - claude.com_docs
+          - code.claude.com_docs
+          - platform.claude.com
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-claude-docs
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+
+      - name: Run documentation sync
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_FULL: ${{ inputs.full_sync }}
+          INPUT_SITE: ${{ inputs.site }}
+          METRICS_FILE: ${{ runner.temp }}/sync_metrics.json
+        run: |
+          ARGS=(--workers 2 --metrics-file "$METRICS_FILE")
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ -n "$INPUT_SITE" ] && [ "$INPUT_SITE" != "all" ]; then
+              ARGS+=(--site "$INPUT_SITE")
+            fi
+            if [ "$INPUT_FULL" = "true" ]; then
+              ARGS+=(--full)
+            fi
+          else
+            # Scheduled monthly sync always runs full verification
+            ARGS+=(--full)
+          fi
+
+          python scripts/sync_docs.py "${ARGS[@]}"
+
+      - name: Commit and push changes
+        env:
+          METRICS_FILE: ${{ runner.temp }}/sync_metrics.json
+        run: |
+          shopt -s nullglob
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes detected; skipping commit."
+            exit 0
+          fi
+
+          read -r ADDED UPDATED DELETED UNCHANGED < <(
+            python3 -c 'import json, os; d = json.load(open(os.environ["METRICS_FILE"], encoding="utf-8")); print(d["added"], d["updated"], d["deleted"], d["unchanged"])'
+          )
+
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+
+          DOCS_CHANGED=false
+          META_CHANGED=false
+
+          # Batch 1: Documentation content + root local indexes (skip if 0 changes)
+          DOC_PATHS=(https_* *_llms.local.md)
+          if [ ${#DOC_PATHS[@]} -gt 0 ]; then
+            git add -A -- "${DOC_PATHS[@]}"
+            if ! git diff --cached --quiet; then
+              DOCS_CHANGED=true
+              git commit -m "本次文档更新 新增${ADDED} 修改${UPDATED} 删除${DELETED} 不变${UNCHANGED}"
+            fi
+          fi
+
+          # Batch 2: Metadata & reconcile reports under _meta/
+          if [ -d _meta ]; then
+            git add -A -- _meta
+            if ! git diff --cached --quiet; then
+              META_CHANGED=true
+              if [ "$DOCS_CHANGED" = "true" ]; then
+                git commit -m "元数据常规检查（文档有变化）"
+              else
+                git commit -m "元数据常规检查（无文档变更）"
+              fi
+            fi
+          fi
+
+          if [ "$DOCS_CHANGED" = "true" ] || [ "$META_CHANGED" = "true" ]; then
+            git push
+          else
+            echo "Nothing committed; skipping push."
+          fi
